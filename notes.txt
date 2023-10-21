@@ -1,3 +1,9 @@
 Maybe add let PATTERN else {}; to the unusual expression forms?
 
 TryFrom no longer needs to be imported, it is part of prelude from 2021 edition.
+
+Maybe show inline names / formatters for println!(""), e.g.:
+```rs
+let a: i32 = 5;
+println!("{a:02x}");
+```

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, fmt};
 
 mod student;
 use student::{read_students, Student};
@@ -22,7 +22,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    dbg!(student_stats);
+    for (name, stats) in student_stats {
+        println!("{name} took {stats}");
+    }
 
     Ok(())
 }
@@ -39,8 +41,16 @@ impl TestStatistics {
         self.total += score as u32;
         self.no_scores += 1;
     }
-
+    
     fn missed_test(&mut self) {
         self.no_missed += 1;
+    }
+}
+
+impl fmt::Display for TestStatistics {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let TestStatistics { total, no_scores, no_missed } = *self;
+        let pluralise = |n: u32| if n == 1 { "test" } else { "tests" };
+        write!(f, "{no_scores} {}, with a total score of {total}.  They missed {no_missed} {}.", pluralise(no_scores), pluralise(no_missed))
     }
 }
