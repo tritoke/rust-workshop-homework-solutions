@@ -1,0 +1,14 @@
+[package]
+name = "bft"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bft_interp = { path = "bft_interp" }
+bft_types = { path = "bft_types" }
+
+[workspace]
+members = [
+  "bft_interp",
+  "bft_types"
+]
