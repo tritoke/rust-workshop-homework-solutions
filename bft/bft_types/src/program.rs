@@ -133,6 +133,17 @@ mod tests {
     #[test]
     fn test_parse_basic() {
         let alphabet = vec![b'>', b'<', b'+', b'-', b'.', b',', b'[', b']'];
-        Program::new(Path::new("-"), alphabet).unwrap();
+        let prog = Program::new(Path::new("-"), alphabet).unwrap();
+        let correct = [
+            Instruction::Inc,
+            Instruction::Dec,
+            Instruction::Succ,
+            Instruction::Pred,
+            Instruction::Out,
+            Instruction::In,
+            Instruction::Jz { dest: 8 },
+            Instruction::Jnz { dest: 7 },
+        ];
+        assert_eq!(prog.instructions(), correct);
     }
 }
