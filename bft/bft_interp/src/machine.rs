@@ -6,9 +6,11 @@ use bft_types::Program;
 #[derive(Debug, Clone)]
 pub struct Machine {
     /// The memory backing the virtual machine
+    #[allow(dead_code)]
     tape: Vec<u8>,
 
     /// Can the tape grow?
+    #[allow(dead_code)]
     tape_can_grow: bool,
 }
 
