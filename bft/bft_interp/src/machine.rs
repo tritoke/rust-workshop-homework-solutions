@@ -1,5 +1,7 @@
 //! The brainfuck virtual machine
 
+use bft_types::Program;
+
 /// The brainfuck virtual machine state
 #[derive(Debug, Clone)]
 pub struct Machine {
@@ -47,6 +49,16 @@ impl Machine {
         Self {
             tape: vec![0; tape_size],
             tape_can_grow: false,
+        }
+    }
+
+    /// Create a new virtual machine with a fixed size tape
+    ///
+    /// `tape_size`: the size of the tape to allocate for the virtual machine
+    pub fn run(&self, program: &Program) {
+        println!("Running {}", program.filename().display());
+        for instr in program.instructions() {
+            println!("{instr:?}");
         }
     }
 }
