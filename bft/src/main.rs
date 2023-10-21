@@ -1,15 +1,27 @@
+#![deny(missing_docs)]
+#![deny(clippy::missing_docs_in_private_items)]
+
+//! An interpreter for the brainfuck programming language
+
 use std::error::Error;
 
 use bft_interp::Machine;
 use bft_types::Program;
+use clap::Parser;
+
+/// The CLI for the interpreter
+mod cli;
+use cli::Args;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let prog_path = std::env::args().nth(1).ok_or_else(|| {
-        String::from("Insufficient number of arguments, please provide a filename.")
-    })?;
+    let args = Args::parse();
 
-    let machine = Machine::new_fixed_size(30_000);
-    let program = Program::from_file(prog_path)?;
+    let machine = if args.extensible {
+        Machine::new(args.cells)
+    } else {
+        Machine::new_fixed_size(args.cells)
+    };
+    let program = Program::from_file(args.program)?;
 
     machine.run(&program);
 
