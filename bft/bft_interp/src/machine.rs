@@ -55,6 +55,14 @@ impl Machine {
     /// Create a new virtual machine with a fixed size tape
     ///
     /// `tape_size`: the size of the tape to allocate for the virtual machine
+    ///
+    /// ```
+    /// # use bft_interp::Machine;
+    /// # use bft_types::Program;
+    /// let prog = Program::from_file("../programs/example.bf").unwrap();
+    /// let vm = Machine::new_fixed_size(1000);
+    /// vm.run(&prog);
+    /// ```
     pub fn run(&self, program: &Program) {
         println!("Running {}", program.filename().display());
         for instr in program.instructions() {
