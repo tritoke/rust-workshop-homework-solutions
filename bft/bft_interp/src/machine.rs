@@ -1,7 +1,5 @@
 //! The brainfuck virtual machine
 
-use std::num::NonZeroUsize;
-
 /// The brainfuck virtual machine state
 #[derive(Debug, Clone)]
 pub struct Machine {
