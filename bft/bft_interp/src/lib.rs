@@ -5,3 +5,7 @@
 
 mod machine;
 pub use machine::{InterpretError, Machine, TapeKind, DEFAULT_TAPE_SIZE};
+
+/// A Write wrapper type which ensures a newline terminates the output
+mod newline_wrap;
+pub use newline_wrap::NewlineWrap;

@@ -5,7 +5,7 @@
 
 use std::{error::Error, io, process::ExitCode};
 
-use bft_interp::{Machine, TapeKind};
+use bft_interp::{Machine, NewlineWrap, TapeKind};
 use bft_types::Program;
 use clap::Parser;
 
@@ -37,7 +37,7 @@ fn run_bft(args: &Args) -> Result<(), Box<dyn Error>> {
     let program = Program::from_file(&args.program)?;
 
     let stdin = io::stdin().lock();
-    let stdout = io::stdout().lock();
+    let stdout = NewlineWrap::new(io::stdout().lock());
     let mut machine = Machine::<u8>::new(args.cells, tape_kind, &program);
     machine.run(stdin, stdout)?;
 
