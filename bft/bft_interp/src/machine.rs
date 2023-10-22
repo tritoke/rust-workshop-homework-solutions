@@ -1,8 +1,11 @@
 //! The brainfuck virtual machine
 
-use std::io::{self, Read, Write};
+use std::{
+    fmt,
+    io::{self, Read, Write},
+};
 
-use bft_types::Program;
+use bft_types::{Instruction, Program};
 
 /// The result of executing a single brainfuck command
 pub type CommandResult = Result<usize, InterpretError>;
@@ -124,16 +127,31 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
     /// ```
     /// # use bft_interp::{Machine, TapeKind};
     /// # use bft_types::Program;
+    /// # use std::io;
     /// let prog = Program::from_file("../programs/example.bf").unwrap();
     /// let mut vm = Machine::<u8>::new(1000, TapeKind::FixedSize, &prog);
-    /// vm.run();
+    /// vm.run(io::stdin().lock(), io::stdout().lock());
     /// ```
     #[allow(unused_mut)]
-    pub fn run(&mut self) {
-        println!("Running {}", self.program.filename().display());
-        for instr in self.program.instructions() {
-            println!("{instr:?}");
+    pub fn run(
+        &mut self,
+        mut input: impl Read,
+        mut output: impl Write,
+    ) -> Result<(), InterpretError> {
+        while let Some(&instr) = self.program.instructions().get(self.ip) {
+            self.ip = match instr {
+                Instruction::Inc => self.move_head_right()?,
+                Instruction::Dec => self.move_head_left()?,
+                Instruction::Succ => self.increment_cell()?,
+                Instruction::Pred => self.decrement_cell()?,
+                Instruction::In => self.read_value(&mut input)?,
+                Instruction::Out => self.write_value(&mut output)?,
+                Instruction::Jz { dest } => self.jump_if_zero(dest)?,
+                Instruction::Jnz { pair_loc } => pair_loc,
+            };
         }
+
+        Ok(())
     }
 
     /// Move the tape head one position to the left
@@ -242,8 +260,28 @@ pub enum InterpretError {
     },
 }
 
+impl fmt::Display for InterpretError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TapeRunOffError { ip_at_error } => {
+                write!(
+                    f,
+                    "Error: Exceeded the bounds of the tape, IP={ip_at_error}"
+                )
+            }
+            Self::IoError { ip_at_error, inner } => {
+                write!(f, "Error: Failed to perform IO ({inner}), IP={ip_at_error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for InterpretError {}
+
 #[cfg(test)]
 mod tests {
+    use std::io::ErrorKind;
+
     use super::*;
 
     #[test]
@@ -408,5 +446,38 @@ mod tests {
         assert!(!machine.tape[0].is_zero());
         assert_eq!(machine.ip, 0);
         assert_eq!(machine.jump_if_zero(1234).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_run_hello_world() {
+        let prog = Program::from_file("../programs/example.bf").unwrap();
+        let mut machine = Machine::<u8>::new(DEFAULT_TAPE_SIZE, TapeKind::FixedSize, &prog);
+
+        let mut output = Vec::new();
+        machine.run(io::empty(), &mut output).unwrap();
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(output, "hello world");
+    }
+
+    #[test]
+    fn test_run_rot13() {
+        let prog = Program::from_file("../programs/rot13.bf").unwrap();
+        let mut machine = Machine::<u8>::new(DEFAULT_TAPE_SIZE, TapeKind::FixedSize, &prog);
+
+        let mut output = Vec::new();
+        let input =
+            io::Cursor::new(b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+        let err = machine.run(input, &mut output).unwrap_err();
+        assert!(matches!(err,
+            InterpretError::IoError { ip_at_error, inner }
+            if ip_at_error == 187 && inner.kind() == ErrorKind::UnexpectedEof
+        ));
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(
+            output,
+            "nopqrstuvwxyzabcdefghijklmNOPQRSTUVWXYZABCDEFGHIJKLM0123456789"
+        );
     }
 }

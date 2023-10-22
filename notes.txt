@@ -7,3 +7,5 @@ Maybe show inline names / formatters for println!(""), e.g.:
 let a: i32 = 5;
 println!("{a:02x}");
 ```
+
+the interpret function shows &mut self, but input and output are not taken as mut?
