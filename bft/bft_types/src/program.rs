@@ -96,7 +96,7 @@ impl Program {
                     dest: jumps[&i] + 1,
                 },
                 b']' => Instruction::Jnz {
-                    dest: jumps[&i] + 1,
+                    pair_loc: jumps[&i],
                 },
                 _ => unreachable!(
                     "domain precondition broken, invalid instruction present after filtering"
@@ -225,7 +225,7 @@ mod tests {
             Instruction::Out,
             Instruction::In,
             Instruction::Jz { dest: 8 },
-            Instruction::Jnz { dest: 7 },
+            Instruction::Jnz { pair_loc: 6 },
         ];
         assert_eq!(prog.instructions(), correct);
     }

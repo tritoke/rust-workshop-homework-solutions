@@ -4,6 +4,9 @@ use std::io::{self, Read, Write};
 
 use bft_types::Program;
 
+/// The result of executing a single brainfuck command
+pub type CommandResult = Result<usize, InterpretError>;
+
 /// The brainfuck virtual machine state
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -136,11 +139,11 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
     /// Move the tape head one position to the left
     ///
     /// If the tape head runs off the end TapeRunOffError is returned
-    fn move_head_left(&mut self) -> Result<(), InterpretError> {
+    fn move_head_left(&mut self) -> CommandResult {
         match self.dp.checked_sub(1) {
             Some(new_dp) => {
                 self.dp = new_dp;
-                Ok(())
+                Ok(self.ip + 1)
             }
             None => Err(InterpretError::TapeRunOffError {
                 ip_at_error: self.ip,
@@ -151,7 +154,7 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
     /// Move the tape head one position to the right
     ///
     /// If the tape head runs off the end TapeRunOffError is returned
-    fn move_head_right(&mut self) -> Result<(), InterpretError> {
+    fn move_head_right(&mut self) -> CommandResult {
         self.dp += 1;
         if self.dp >= self.tape.len() {
             if self.tape_can_grow {
@@ -167,21 +170,23 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
             }
         }
 
-        Ok(())
+        Ok(self.ip + 1)
     }
 
     /// Increment the value of the cell at the current data pointer
-    fn increment_cell(&mut self) {
-        self.tape[self.dp].wrapping_inc()
+    fn increment_cell(&mut self) -> CommandResult {
+        self.tape[self.dp].wrapping_inc();
+        Ok(self.ip + 1)
     }
 
     /// Decrement the value of the cell at the current data pointer
-    fn decrement_cell(&mut self) {
-        self.tape[self.dp].wrapping_dec()
+    fn decrement_cell(&mut self) -> CommandResult {
+        self.tape[self.dp].wrapping_dec();
+        Ok(self.ip + 1)
     }
 
     /// Read a single u8 from a reader and assign it to the value of the tape
-    fn read_value(&mut self, reader: &mut impl Read) -> Result<(), InterpretError> {
+    fn read_value(&mut self, reader: &mut impl Read) -> CommandResult {
         let mut buf = [0u8];
         if let Err(inner) = reader.read_exact(&mut buf) {
             return Err(InterpretError::IoError {
@@ -192,11 +197,11 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
 
         self.tape[self.dp].set_value(buf[0]);
 
-        Ok(())
+        Ok(self.ip + 1)
     }
 
     /// Write the big-endian byte value of the current cell into the writer
-    fn write_value(&mut self, writer: &mut impl Write) -> Result<(), InterpretError> {
+    fn write_value(&mut self, writer: &mut impl Write) -> CommandResult {
         let buf = self.tape[self.dp].as_bytes();
 
         if let Err(inner) = writer.write_all(&buf) {
@@ -206,7 +211,16 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
             });
         };
 
-        Ok(())
+        Ok(self.ip + 1)
+    }
+
+    /// Jump forward if the value of the tape at the data pointer is zerIf the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching [ command.o
+    fn jump_if_zero(&mut self, dest: usize) -> CommandResult {
+        if self.tape[self.dp].is_zero() {
+            Ok(dest)
+        } else {
+            Ok(self.ip + 1)
+        }
     }
 }
 
@@ -240,7 +254,9 @@ mod tests {
         for i in 0..100 {
             assert_eq!(machine.dp, i);
             assert!(machine.tape.len() > i);
-            machine.move_head_right().unwrap();
+            let new_ip = machine.move_head_right().unwrap();
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
             assert_eq!(machine.dp, i + 1);
             assert!(machine.tape.len() > i + 1);
         }
@@ -252,11 +268,15 @@ mod tests {
         let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
 
         for _ in 0..99 {
-            machine.move_head_right().unwrap();
+            let new_ip = machine.move_head_right().unwrap();
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
         }
         assert!(matches!(
             machine.move_head_right().unwrap_err(),
-            InterpretError::TapeRunOffError { ip_at_error: 0 }
+            InterpretError::TapeRunOffError {
+                ip_at_error
+            } if ip_at_error == machine.ip
         ));
     }
 
@@ -270,8 +290,10 @@ mod tests {
         }
         for i in (0..100).rev() {
             assert_eq!(machine.dp, i + 1);
-            machine.move_head_left().unwrap();
+            let new_ip = machine.move_head_left().unwrap();
             assert_eq!(machine.dp, i);
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
         }
     }
 
@@ -291,11 +313,14 @@ mod tests {
         let prog = Program::from_file("../programs/example.bf").unwrap();
         let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
 
-        machine.increment_cell();
+        let new_ip = machine.increment_cell().unwrap();
+        assert_eq!(new_ip, machine.ip + 1);
         assert_eq!(machine.tape[0], 1);
+        machine.ip = new_ip;
 
         machine.tape[0].set_value(0xFF);
-        machine.increment_cell();
+        let new_ip = machine.increment_cell().unwrap();
+        assert_eq!(new_ip, machine.ip + 1);
         assert_eq!(machine.tape[0], 0);
     }
 
@@ -304,9 +329,13 @@ mod tests {
         let prog = Program::from_file("../programs/example.bf").unwrap();
         let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
 
-        machine.decrement_cell();
+        let new_ip = machine.decrement_cell().unwrap();
+        assert_eq!(new_ip, machine.ip + 1);
         assert_eq!(machine.tape[0], 0xFF);
-        machine.decrement_cell();
+        machine.ip = new_ip;
+
+        let new_ip = machine.decrement_cell().unwrap();
+        assert_eq!(new_ip, machine.ip + 1);
         assert_eq!(machine.tape[0], 0xFE);
     }
 
@@ -318,8 +347,10 @@ mod tests {
         let data = 0xDEADBEEF_u32.to_be_bytes();
         let mut reader = std::io::Cursor::new(data);
         for d in data {
-            machine.read_value(&mut reader).unwrap();
+            let new_ip = machine.read_value(&mut reader).unwrap();
             assert_eq!(machine.tape[0], d);
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
         }
         machine.read_value(&mut reader).unwrap_err();
     }
@@ -332,8 +363,10 @@ mod tests {
         for i in u8::MIN..=u8::MAX {
             let mut writer = std::io::Cursor::new(vec![0u8]);
             machine.tape[0].set_value(i);
-            machine.write_value(&mut writer).unwrap();
+            let new_ip = machine.write_value(&mut writer).unwrap();
             assert_eq!(writer.get_ref(), &[i]);
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
         }
     }
 
@@ -345,10 +378,11 @@ mod tests {
         let val = 0xDEAD_BEEF;
         machine.tape[0] = val;
         let mut writer = std::io::Cursor::new(vec![0u8; 4]);
-        machine.write_value(&mut writer).unwrap();
-        machine.write_value(&mut writer).unwrap();
-        machine.write_value(&mut writer).unwrap();
-        machine.write_value(&mut writer).unwrap();
+        for _ in 0..4 {
+            let new_ip = machine.write_value(&mut writer).unwrap();
+            assert_eq!(new_ip, machine.ip + 1);
+            machine.ip = new_ip;
+        }
 
         assert_eq!(&writer.get_ref()[..4], &val.to_be_bytes());
     }
@@ -361,5 +395,18 @@ mod tests {
         assert!(machine.tape[0].is_zero());
         machine.tape[0].wrapping_inc();
         assert!(!machine.tape[0].is_zero());
+    }
+
+    #[test]
+    fn test_jump_if_zero() {
+        let prog = Program::from_file("../programs/example.bf").unwrap();
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
+
+        assert!(machine.tape[0].is_zero());
+        assert_eq!(machine.jump_if_zero(1234).unwrap(), 1234);
+        machine.tape[0].wrapping_inc();
+        assert!(!machine.tape[0].is_zero());
+        assert_eq!(machine.ip, 0);
+        assert_eq!(machine.jump_if_zero(1234).unwrap(), 1);
     }
 }

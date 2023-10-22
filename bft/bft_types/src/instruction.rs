@@ -25,9 +25,9 @@ pub enum Instruction {
         dest: usize,
     },
 
-    /// `]` If the byte at the data pointer is nonzero, then instead of moving the instruction pointer forward to the next command, jump it back to the command after the matching [ command.
+    /// `]` Unconditionally jump back to the matching bracket
     Jnz {
-        /// The value of the data pointer if the jump is taken
-        dest: usize,
+        /// The location of the bracket's matching pair
+        pair_loc: usize,
     },
 }
