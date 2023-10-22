@@ -5,7 +5,7 @@
 
 /// the brainfuck program
 mod program;
-pub use program::Program;
+pub use program::{Program, SourceLocation};
 
 /// the instructions of the brainfuck program
 mod instruction;
