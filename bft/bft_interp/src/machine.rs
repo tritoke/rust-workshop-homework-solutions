@@ -44,6 +44,9 @@ pub trait CellKind: Default + Clone {
     /// Decrement the cell by one, wrapping the result of the computation
     fn wrapping_dec(&mut self);
 
+    /// Does this cell contain zero
+    fn is_zero(&self) -> bool;
+
     /// Set the value of the cell
     fn set_value(&mut self, value: u8);
 
@@ -61,6 +64,10 @@ macro_rules! cell_kind_impl {
 
             fn wrapping_dec(&mut self) {
                 *self = self.wrapping_sub(1);
+            }
+
+            fn is_zero(&self) -> bool {
+                *self == 0
             }
 
             fn set_value(&mut self, value: u8) {
@@ -344,5 +351,15 @@ mod tests {
         machine.write_value(&mut writer).unwrap();
 
         assert_eq!(&writer.get_ref()[..4], &val.to_be_bytes());
+    }
+
+    #[test]
+    fn test_is_zero() {
+        let prog = Program::from_file("../programs/example.bf").unwrap();
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
+
+        assert!(machine.tape[0].is_zero());
+        machine.tape[0].wrapping_inc();
+        assert!(!machine.tape[0].is_zero());
     }
 }
