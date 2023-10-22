@@ -5,12 +5,12 @@ use bft_types::Program;
 /// The brainfuck virtual machine state
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct Machine<'a> {
+pub struct Machine<'a, Cell: CellKind> {
     /// The program the VM is running
     program: &'a Program,
 
     /// The memory backing the virtual machine
-    tape: Vec<u8>,
+    tape: Vec<Cell>,
 
     /// Can the tape grow?
     tape_can_grow: bool,
@@ -34,8 +34,27 @@ pub enum TapeKind {
     FixedSize,
 }
 
+/// The bounds required for a type to act as a cell
+pub trait CellKind: Default + Clone {
+    /// Increment the cell by one, wrapping the result of the computation
+    fn wrapping_inc(&mut self);
+
+    /// Decrement the cell by one, wrapping the result of the computation
+    fn wrapping_dec(&mut self);
+}
+
+impl CellKind for u8 {
+    fn wrapping_inc(&mut self) {
+        *self = self.wrapping_add(1);
+    }
+
+    fn wrapping_dec(&mut self) {
+        *self = self.wrapping_sub(1);
+    }
+}
+
 #[allow(dead_code)]
-impl<'a> Machine<'a> {
+impl<'a, Cell: CellKind> Machine<'a, Cell> {
     /// Create a new virtual machine with a growable tape
     ///
     /// `tape_size`: the size of the tape to allocate for the virtual machine
@@ -44,12 +63,12 @@ impl<'a> Machine<'a> {
     /// # use bft_interp::{Machine, TapeKind};
     /// # use bft_types::Program;
     /// let prog = Program::from_file("../programs/example.bf").unwrap();
-    /// let vm = Machine::new(1000, TapeKind::Growable, &prog);
+    /// let vm = Machine::<u8>::new(1000, TapeKind::Growable, &prog);
     /// ```
     pub fn new(tape_size: usize, tape_kind: TapeKind, program: &'a Program) -> Self {
         Self {
             program,
-            tape: vec![0; tape_size],
+            tape: vec![Cell::default(); tape_size],
             tape_can_grow: tape_kind == TapeKind::Growable,
             dp: 0,
             ip: 0,
@@ -64,7 +83,7 @@ impl<'a> Machine<'a> {
     /// # use bft_interp::{Machine, TapeKind};
     /// # use bft_types::Program;
     /// let prog = Program::from_file("../programs/example.bf").unwrap();
-    /// let mut vm = Machine::new(1000, TapeKind::FixedSize, &prog);
+    /// let mut vm = Machine::<u8>::new(1000, TapeKind::FixedSize, &prog);
     /// vm.run();
     /// ```
     #[allow(unused_mut)]
@@ -98,7 +117,7 @@ impl<'a> Machine<'a> {
         if self.dp >= self.tape.len() {
             if self.tape_can_grow {
                 self.tape.reserve(1);
-                self.tape.resize(self.tape.capacity(), 0);
+                self.tape.resize(self.tape.capacity(), Cell::default());
             } else {
                 return Err(InterpretError::TapeRunOffError {
                     ip_at_error: self.ip,
@@ -107,6 +126,16 @@ impl<'a> Machine<'a> {
         }
 
         Ok(())
+    }
+
+    /// Increment the value of the cell at the current data pointer
+    fn increment_cell(&mut self) {
+        self.tape[self.dp].wrapping_inc()
+    }
+
+    /// Decrement the value of the cell at the current data pointer
+    fn decrement_cell(&mut self) {
+        self.tape[self.dp].wrapping_dec()
     }
 }
 
@@ -127,7 +156,7 @@ mod tests {
     #[test]
     fn test_move_head_right_grows() {
         let prog = Program::from_file("../programs/example.bf").unwrap();
-        let mut machine = Machine::new(1, TapeKind::Growable, &prog);
+        let mut machine = Machine::<u8>::new(1, TapeKind::Growable, &prog);
 
         for i in 0..100 {
             assert_eq!(machine.dp, i);
@@ -141,7 +170,7 @@ mod tests {
     #[test]
     fn test_move_head_right_run_off() {
         let prog = Program::from_file("../programs/example.bf").unwrap();
-        let mut machine = Machine::new(100, TapeKind::FixedSize, &prog);
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
 
         for _ in 0..99 {
             machine.move_head_right().unwrap();
@@ -155,7 +184,7 @@ mod tests {
     #[test]
     fn test_move_head_left() {
         let prog = Program::from_file("../programs/example.bf").unwrap();
-        let mut machine = Machine::new(1, TapeKind::Growable, &prog);
+        let mut machine = Machine::<u8>::new(1, TapeKind::Growable, &prog);
 
         for _ in 0..100 {
             machine.move_head_right().unwrap();
@@ -170,7 +199,7 @@ mod tests {
     #[test]
     fn test_move_head_left_run_off() {
         let prog = Program::from_file("../programs/example.bf").unwrap();
-        let mut machine = Machine::new(100, TapeKind::FixedSize, &prog);
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
 
         for _ in 0..99 {
             machine.move_head_right().unwrap();
@@ -179,5 +208,29 @@ mod tests {
             machine.move_head_right().unwrap_err(),
             InterpretError::TapeRunOffError { ip_at_error: 0 }
         );
+    }
+
+    #[test]
+    fn test_increment_cell() {
+        let prog = Program::from_file("../programs/example.bf").unwrap();
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
+
+        machine.increment_cell();
+        assert_eq!(machine.tape[0], 1);
+
+        machine.tape[0] = 0xFF;
+        machine.increment_cell();
+        assert_eq!(machine.tape[0], 0);
+    }
+
+    #[test]
+    fn test_decrement_cell() {
+        let prog = Program::from_file("../programs/example.bf").unwrap();
+        let mut machine = Machine::<u8>::new(100, TapeKind::FixedSize, &prog);
+
+        machine.decrement_cell();
+        assert_eq!(machine.tape[0], 0xFF);
+        machine.decrement_cell();
+        assert_eq!(machine.tape[0], 0xFE);
     }
 }

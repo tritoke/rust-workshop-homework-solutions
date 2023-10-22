@@ -36,7 +36,7 @@ fn run_bft(args: &Args) -> Result<(), Box<dyn Error>> {
     };
     let program = Program::from_file(&args.program)?;
 
-    let mut machine = Machine::new(args.cells, tape_kind, &program);
+    let mut machine = Machine::<u8>::new(args.cells, tape_kind, &program);
     machine.run();
 
     Ok(())
