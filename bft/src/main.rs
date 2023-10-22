@@ -5,7 +5,7 @@
 
 use std::{error::Error, process::ExitCode};
 
-use bft_interp::Machine;
+use bft_interp::{Machine, TapeKind};
 use bft_types::Program;
 use clap::Parser;
 
@@ -29,14 +29,15 @@ fn main() -> ExitCode {
 ///
 /// `args`: The CLI arguments
 fn run_bft(args: &Args) -> Result<(), Box<dyn Error>> {
-    let machine = if args.extensible {
-        Machine::new(args.cells)
+    let tape_kind = if args.extensible {
+        TapeKind::Growable
     } else {
-        Machine::new_fixed_size(args.cells)
+        TapeKind::FixedSize
     };
     let program = Program::from_file(&args.program)?;
 
-    machine.run(&program);
+    let mut machine = Machine::new(args.cells, tape_kind, &program);
+    machine.run();
 
     Ok(())
 }

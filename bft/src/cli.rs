@@ -1,3 +1,4 @@
+use bft_interp::DEFAULT_TAPE_SIZE;
 use clap::Parser;
 use clap_num::number_range;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ pub struct Args {
     pub extensible: bool,
 
     /// The number of cells to allocate for the interpreter's tape
-    #[arg(short, long, default_value_t = 30_000, value_parser = forbid_zero)]
+    #[arg(short, long, default_value_t = DEFAULT_TAPE_SIZE, value_parser = forbid_zero)]
     pub cells: usize,
 }
 

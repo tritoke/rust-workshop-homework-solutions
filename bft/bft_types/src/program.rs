@@ -30,10 +30,11 @@ impl Program {
     /// reporting whether an unopened or unclosed bracket caused the failure, and the
     /// source code location of that failure.
     ///
-    /// ```ignore
+    /// ```
     /// # use bft_types::Program;
-    /// let contents = include_bytes!("../../programs/example.bf");
-    /// let program = Program::try_new("../../programs/example.bf", contents).unwrap();
+    /// # use std::path::Path;
+    /// let contents = include_str!("../../programs/example.bf");
+    /// let program = Program::try_new(Path::new("../../programs/example.bf"), contents).unwrap();
     /// ```
     pub fn try_new(filename: &Path, file_contents: impl AsRef<str>) -> Result<Self, BfParseError> {
         // first filter out comment characters

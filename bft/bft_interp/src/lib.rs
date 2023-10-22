@@ -4,4 +4,4 @@
 //! the brainfuck interpreter
 
 mod machine;
-pub use machine::Machine;
+pub use machine::{InterpretError, Machine, TapeKind, DEFAULT_TAPE_SIZE};
