@@ -229,6 +229,8 @@ impl<'a, Cell: CellKind> Machine<'a, Cell> {
             });
         };
 
+        writer.flush().ok();
+
         Ok(self.ip + 1)
     }
 
