@@ -32,6 +32,8 @@ jobs:
         working-directory: bft
         env:
           RUSTFLAGS: "-Dwarnings"
-      - run: cargo fmt --all --check --verbose
+      - run: cargo clippy --all --check --verbose
         working-directory: bft
+        env:
+          RUSTFLAGS: "-Dwarnings"
   
