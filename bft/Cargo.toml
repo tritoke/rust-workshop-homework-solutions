@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bft_interp = { path = "bft_interp" }
-bft_types = { path = "bft_types" }
-clap = { version = "4.4.6", features = ["derive"] }
-clap-num = "1.0.2"
+bft_interp = { workspace = true }
+bft_types = { workspace = true }
+clap = { workspace = true }
+clap-num = { workspace = true }
 
 [workspace]
 members = [
@@ -15,3 +15,9 @@ members = [
   "bft_types"
 ]
 
+[workspace.dependencies]
+bft_interp = { path = "bft_interp" }
+bft_types = { path = "bft_types" }
+clap = { version = "4.4", features = ["derive"] }
+clap-num = "1.1"
+rstest = "0.18"

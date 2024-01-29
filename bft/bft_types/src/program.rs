@@ -212,75 +212,41 @@ impl Error for BfParseError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
-    #[test]
-    fn test_parse_basic() {
-        let alphabet = "><+-.,[]";
-        let prog = Program::try_new(Path::new("-"), alphabet).unwrap();
-        let correct = [
-            Instruction::Inc,
-            Instruction::Dec,
-            Instruction::Succ,
-            Instruction::Pred,
-            Instruction::Out,
-            Instruction::In,
-            Instruction::Jz { dest: 8 },
-            Instruction::Jnz { pair_loc: 6 },
-        ];
-        assert_eq!(prog.instructions(), correct);
+    #[rstest]
+    #[case(">", &[Instruction::Inc])]
+    #[case("<", &[Instruction::Dec])]
+    #[case("+", &[Instruction::Succ])]
+    #[case("-", &[Instruction::Pred])]
+    #[case(".", &[Instruction::Out])]
+    #[case(",", &[Instruction::In])]
+    #[case("[]", &[Instruction::Jz { dest: 8 }, Instruction::Jnz { pair_loc: 6 }])]
+    fn test_parse_basic(#[case] input: &str, #[case] expected: &[Instruction]) {
+        let prog = Program::try_new(Path::new("-"), input).unwrap();
+        assert_eq!(prog.instructions(), expected);
     }
 
-    #[test]
-    fn test_parse_fails_malformed() {
-        let bad = [
-            (
-                "[",
-                BfParseErrorKind::UnclosedBracket,
-                SourceLocation { line: 0, column: 0 },
-            ),
-            (
-                "]",
-                BfParseErrorKind::UnopenedBracket,
-                SourceLocation { line: 0, column: 0 },
-            ),
-            (
-                "][",
-                BfParseErrorKind::UnopenedBracket,
-                SourceLocation { line: 0, column: 0 },
-            ),
-            (
-                "[[",
-                BfParseErrorKind::UnclosedBracket,
-                SourceLocation { line: 0, column: 1 },
-            ),
-            (
-                "]]",
-                BfParseErrorKind::UnopenedBracket,
-                SourceLocation { line: 0, column: 0 },
-            ),
-            (
-                "[[[[[[[[]]]]]]]]]",
-                BfParseErrorKind::UnopenedBracket,
-                SourceLocation {
-                    line: 0,
-                    column: 16,
-                },
-            ),
-            (
-                "[[[[[[[[[]]]]]]]]",
-                BfParseErrorKind::UnclosedBracket,
-                SourceLocation { line: 0, column: 0 },
-            ),
-        ];
-        for (bf, err_kind, err_loc) in bad {
-            let BfParseError {
-                filename,
-                location,
-                kind,
-            } = Program::try_new(Path::new("-"), bf).unwrap_err();
-            assert_eq!(kind, err_kind);
-            assert_eq!(location, err_loc);
-            assert_eq!(filename, Path::new("-"));
-        }
+    #[rstest]
+    #[case("[", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 16 })]
+    #[case("]", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 0 })]
+    #[case("][", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 0 })]
+    #[case("[[", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 1 })]
+    #[case("]]", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 0 })]
+    #[case("[[[[[[[[]]]]]]]]]", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 16 })]
+    #[case("[[[[[[[[[]]]]]]]]", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 0 })]
+    fn test_parse_fails_malformed_rstest(
+        #[case] input: &str,
+        #[case] err_kind: BfParseErrorKind,
+        #[case] err_loc: SourceLocation,
+    ) {
+        let BfParseError {
+            filename,
+            location,
+            kind,
+        } = Program::try_new(Path::new("-"), input).unwrap_err();
+        assert_eq!(kind, err_kind);
+        assert_eq!(location, err_loc);
+        assert_eq!(filename, Path::new("-"));
     }
 }
