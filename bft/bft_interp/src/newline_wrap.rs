@@ -48,7 +48,7 @@ impl<W: Write> Write for NewlineWrap<W> {
 impl<W: Write> Drop for NewlineWrap<W> {
     fn drop(&mut self) {
         if self.last_written != b'\n' {
-            self.write(b"\n").ok();
+            self.write_all(b"\n").ok();
             self.flush().ok();
         }
     }
