@@ -221,14 +221,14 @@ mod tests {
     #[case("-", &[Instruction::Pred])]
     #[case(".", &[Instruction::Out])]
     #[case(",", &[Instruction::In])]
-    #[case("[]", &[Instruction::Jz { dest: 8 }, Instruction::Jnz { pair_loc: 6 }])]
+    #[case("[]", &[Instruction::Jz { dest: 2 }, Instruction::Jnz { pair_loc: 0 }])]
     fn test_parse_basic(#[case] input: &str, #[case] expected: &[Instruction]) {
         let prog = Program::try_new(Path::new("-"), input).unwrap();
         assert_eq!(prog.instructions(), expected);
     }
 
     #[rstest]
-    #[case("[", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 16 })]
+    #[case("[", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 0 })]
     #[case("]", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 0 })]
     #[case("][", BfParseErrorKind::UnopenedBracket, SourceLocation { line: 0, column: 0 })]
     #[case("[[", BfParseErrorKind::UnclosedBracket, SourceLocation { line: 0, column: 1 })]
